@@ -119,6 +119,7 @@ body{
 }
 .pelletSimulator .graphicsCanvas{
 	cursor: move;
+	position: absolute;
 }
 .pelletSimulator .overlay{
 	width: 100%;
@@ -161,6 +162,8 @@ body{
 			drawBaryCenter: false,
 			drawLpoints: false,
 			scale: 1000000,
+			draw_x: 900,
+			draw_y: 675,
 			colorFunc: function(num){
 				return "hsl(" + Math.round(num*270) + ",100%,50%)";
 			}
@@ -171,6 +174,7 @@ body{
 			vanishPoint: 5,
 			speed: 20000,
 			time: 0,
+			systemName: "Earth-Moon",
 			semiMajor: 384399000,
 			primaryMass: 5.97237e24,
 			secondaryMass: 7.342e22,
@@ -198,8 +202,13 @@ Its core mechanism is launching clounds of "pellets" over a range of velocities,
 
 Click the '+' button in the bottom left to add some pellets
 		`,controls);
+//https://en.wikipedia.org/wiki/Three-body_problem#Restricted_three-body_problem
 		[
-			{tab: "System"},
+			{tab: "System",
+				ui: function(){
+					create("p","label","System:",controlContent);
+				}
+			},
 			{tab: "Physics",
 				ui: function(){
 					create("p","label","Simulation speed:",controlContent);
@@ -209,6 +218,14 @@ Click the '+' button in the bottom left to add some pellets
 						speedValue.value = internalSimulator.physics.speed;
 					speedValue.oninput = function(){
 						internalSimulator.physics.speed = speedValue.value
+					}
+					create("p","label","Escape distance (radii):",controlContent);
+					let vanishValue = create("input",false,false,controlContent);
+						vanishValue.setAttribute("type","number");
+						vanishValue.setAttribute("min",0);
+						vanishValue.value = internalSimulator.physics.vanishPoint;
+					vanishValue.oninput = function(){
+						internalSimulator.physics.vanishPoint = vanishValue.value
 					}
 				}
 			},
@@ -270,6 +287,7 @@ Click the '+' button in the bottom left to add some pellets
 					pelletNumberValue.oninput = function(){
 						internalSimulator.physics.pelletNumber = pelletNumberValue.value
 					}
+					create("p",false,"Pellets are simulated particles. Initially at very similar velocities, they spread out to show possible trajectories",controlContent);
 				}
 			},
 			{tab: "Scenarios"},
@@ -285,14 +303,30 @@ Click the '+' button in the bottom left to add some pellets
 					controlContent.lastChild.remove()
 				}
 				create("h2","heading",tab.tab,controlContent);
-				tab.ui()
+				if(tab.ui){
+					tab.ui()
+				}
 			}
 		});
+
+		let celestialCanvas = create("canvas","graphicsCanvas",false,drawArea,"width:100%;height:100%;");
+		this.celestialCanvas = celestialCanvas;
+		celestialCanvas.width = this.graphics.draw_x;
+		celestialCanvas.height = this.graphics.draw_y;
+		this.celestialCtx = celestialCanvas.getContext("2d");
+
 		let canvas = create("canvas","graphicsCanvas",false,drawArea,"width:100%;height:100%;");
 		this.canvas = canvas;
-		canvas.width = 900;
-		canvas.height = 675;
+		canvas.width = this.graphics.draw_x;
+		canvas.height = this.graphics.draw_y;
 		this.ctx = canvas.getContext("2d");
+
+		let overlayCanvas = create("canvas","graphicsCanvas",false,drawArea,"width:100%;height:100%;");
+		this.overlayCanvas = overlayCanvas;
+		overlayCanvas.width = this.graphics.draw_x;
+		overlayCanvas.height = this.graphics.draw_y;
+		this.overlayCtx = overlayCanvas.getContext("2d");
+
 		canvas.onmousedown = function(event){
 			if(event.buttons === 1){
 				let deltaX = internalSimulator.graphics.x;
@@ -362,21 +396,9 @@ Click the '+' button in the bottom left to add some pellets
 <svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="90" height="50" viewBox="0 0 90 50">
 	<g stroke="black" stroke-width="4" fill="none">
 		<circle cx="25" cy="25" r="20" fill="green"/>
-		<circle cx="75" cy="25" r="10"/>
-		<line x1="48" x2="62" y1="18" y2="32"/>
-		<line x1="48" x2="62" y1="32" y2="18"/>
-	</g>
-</svg>`;
-		let focusBaryControl = create("span",["control","active"],false,focusControls);
-			focusBaryControl.title = "Focus on barycentre";
-			focusBaryControl.innerHTML = `
-<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="90" height="50" viewBox="0 0 90 50">
-	<g stroke="black" stroke-width="4" fill="none">
-		<circle cx="25" cy="25" r="20"/>
-		<circle cx="75" cy="25" r="10"/>
-		<line x1="48" x2="62" y1="18" y2="32" stroke="green"/>
-		<line x1="48" x2="62" y1="32" y2="18" stroke="green"/>
+		<circle cx="75" cy="25" r="10" stroke-dasharray="5,5"/>
+		<line x1="48" x2="62" y1="18" y2="32" stroke-width="2"/>
+		<line x1="48" x2="62" y1="32" y2="18" stroke-width="2"/>
 	</g>
 </svg>`;
 		let focusSecondaryControl = create("span","control",false,focusControls);
@@ -385,10 +407,22 @@ Click the '+' button in the bottom left to add some pellets
 <?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="90" height="50" viewBox="0 0 90 50">
 	<g stroke="black" stroke-width="4" fill="none">
-		<circle cx="25" cy="25" r="20"/>
+		<circle cx="25" cy="25" r="20" stroke-dasharray="5,5"/>
 		<circle cx="75" cy="25" r="10" fill="green"/>
-		<line x1="48" x2="62" y1="18" y2="32"/>
-		<line x1="48" x2="62" y1="32" y2="18"/>
+		<line x1="48" x2="62" y1="18" y2="32" stroke-width="2"/>
+		<line x1="48" x2="62" y1="32" y2="18" stroke-width="2"/>
+	</g>
+</svg>`;
+		let focusBaryControl = create("span",["control","active"],false,focusControls);
+			focusBaryControl.title = "Focus on barycentre";
+			focusBaryControl.innerHTML = `
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="90" height="50" viewBox="0 0 90 50">
+	<g stroke="black" stroke-width="4" fill="none">
+		<circle cx="25" cy="25" r="20" stroke-dasharray="5,5"/>
+		<circle cx="75" cy="25" r="10" stroke-dasharray="5,5"/>
+		<line x1="48" x2="62" y1="18" y2="32" stroke="green"/>
+		<line x1="48" x2="62" y1="32" y2="18" stroke="green"/>
 	</g>
 </svg>`;
 		let focusRotatingControl = create("span","control",false,focusControls);
@@ -739,6 +773,8 @@ Click the '+' button in the bottom left to add some pellets
 	}
 	drawGraphics(instance,reload,onlyPellets){
 		let ctx = instance.ctx;
+		let celestialCtx = instance.celestialCtx;
+		let overlayCtx = instance.overlayCtx;
 		if(!reload){
 			ctx.globalAlpha = instance.graphics.fade
 		}
@@ -923,12 +959,14 @@ Click the '+' button in the bottom left to add some pellets
 			ctx.arc(...primaryCoords,Math.max(instance.physics.secondaryRadius/instance.graphics.scale,1),0,2 * Math.PI);
 		}
 		ctx.fill();
-		ctx.beginPath();
-		ctx.strokeStyle = "red";
-		ctx.arc(...instance.realToCanvas(0,0),instance.physics.vanishPoint*instance.physics.semiMajor/instance.graphics.scale,0,2*Math.PI);
-		ctx.stroke();
+
+		overlayCtx.clearRect(0,0,instance.graphics.draw_x,instance.graphics.draw_y);
+		overlayCtx.beginPath();
+		overlayCtx.strokeStyle = "red";
+		overlayCtx.arc(...instance.realToCanvas(0,0),instance.physics.vanishPoint*instance.physics.semiMajor/instance.graphics.scale,0,2*Math.PI);
+		overlayCtx.stroke();
 		if(instance.graphics.drawLpoints){
-			ctx.beginPath();
+			overlayCtx.beginPath();
 			let set1 = instance.realToCanvas(
 				(seco_x + prim_x)/2 - instance.physics.semiMajor*Math.sqrt(3)*((seco_y - prim_y)/instance.physics.semiMajor)/2,
 				(seco_y + prim_y)/2 + instance.physics.semiMajor*Math.sqrt(3)*((seco_x - prim_x)/instance.physics.semiMajor)/2
@@ -937,16 +975,16 @@ Click the '+' button in the bottom left to add some pellets
 				(seco_x + prim_x)/2 + instance.physics.semiMajor*Math.sqrt(3)*((seco_y - prim_y)/instance.physics.semiMajor)/2,
 				(seco_y + prim_y)/2 - instance.physics.semiMajor*Math.sqrt(3)*((seco_x - prim_x)/instance.physics.semiMajor)/2
 			);
-			ctx.strokeStyle = "red";
-			ctx.moveTo(set1[0]-5,set1[1]-5);
-			ctx.lineTo(set1[0]+5,set1[1]+5);
-			ctx.moveTo(set1[0]+5,set1[1]-5);
-			ctx.lineTo(set1[0]-5,set1[1]+5);
-			ctx.moveTo(set2[0]-5,set2[1]-5);
-			ctx.lineTo(set2[0]+5,set2[1]+5);
-			ctx.moveTo(set2[0]+5,set2[1]-5);
-			ctx.lineTo(set2[0]-5,set2[1]+5);
-			ctx.stroke()
+			overlayCtx.strokeStyle = "red";
+			overlayCtx.moveTo(set1[0]-5,set1[1]-5);
+			overlayCtx.lineTo(set1[0]+5,set1[1]+5);
+			overlayCtx.moveTo(set1[0]+5,set1[1]-5);
+			overlayCtx.lineTo(set1[0]-5,set1[1]+5);
+			overlayCtx.moveTo(set2[0]-5,set2[1]-5);
+			overlayCtx.lineTo(set2[0]+5,set2[1]+5);
+			overlayCtx.moveTo(set2[0]+5,set2[1]-5);
+			overlayCtx.lineTo(set2[0]-5,set2[1]+5);
+			overlayCtx.stroke()
 		}
 		instance.pellets.forEach(pellet => {
 			ctx.fillStyle = instance.graphics.colorFunc(pellet[4]);
